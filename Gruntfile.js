@@ -1,8 +1,10 @@
 /*
  * grunt-github-tags
- * https://github.com/ajself/grunt-github-tags
+ * https://github.com/bellycard/grunt-github-tags
  *
- * Copyright (c) 2013 AJ Self
+ * Author: AJ Self
+ *
+ * Copyright (c) 2013 Belly
  * Licensed under the MIT license.
  */
 
