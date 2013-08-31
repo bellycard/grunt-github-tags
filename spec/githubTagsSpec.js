@@ -151,13 +151,14 @@ describe('githubTags task', function () {
 
   });
 
-  describe('udpating a tag', function () {
+  describe('updating a tag', function () {
 
     beforeEach(function () {
       spyOn(shell, 'exec').andReturn({output: 'foobar'});
       spyOn(request, 'patch');
       spyOn(GithubTags.prototype, 'createTag');
       spyOn(GithubTags, 'failed');
+      spyOn(GithubTags, 'warning');
       spyOn(grunt.log, 'ok');
     });
 
@@ -180,7 +181,7 @@ describe('githubTags task', function () {
 
       request.patch.mostRecentCall.args[2](null, null, {message: 'Reference does not exist'});
 
-      expect(GithubTags.failed).toHaveBeenCalled();
+      expect(GithubTags.warning).toHaveBeenCalled();
       expect(GithubTags.prototype.createTag).toHaveBeenCalled();
     });
 
@@ -203,6 +204,95 @@ describe('githubTags task', function () {
       request.patch.mostRecentCall.args[2](null, null, {object: {sha: 'foobar'}});
 
       expect(grunt.log.ok).toHaveBeenCalled();
+    });
+
+  });
+
+  describe('get, set, update rollback tags', function () {
+
+    beforeEach(function () {
+      spyOn(GithubTags, 'failed');
+      spyOn(GithubTags, 'warning');
+      spyOn(request, 'get');
+      spyOn(shell, 'exec').andReturn({output: 'foobar'});
+    });
+
+    describe('getting the current, non-rollback tag sha', function () {
+
+      beforeEach(function () {
+        spyOn(GithubTags.prototype, 'updateRollbackTag');
+      });
+
+      it('should call the correct Github API URL with GET', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/' + packageInfo.version + '/?oauth_token=abc123';
+
+        task.checkRollbackTag();
+
+        expect(request.get).toHaveBeenCalled();
+        expect(request.get.mostRecentCall.args[0]).toEqual(expectedUrl);
+      });
+
+      it('should try to update the rollback tag with the current sha if not found', function () {
+
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.checkRollbackTag();
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'Not Found'}));
+
+        expect(GithubTags.warning).toHaveBeenCalled();
+
+        expect(GithubTags.prototype.updateRollbackTag).toHaveBeenCalledWith('foobar');
+
+      });
+
+      it('should try to update the rollback tag with the returned sha if found', function () {
+
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.checkRollbackTag();
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({object: {sha: 'baz'}}));
+
+        expect(GithubTags.prototype.updateRollbackTag).toHaveBeenCalledWith('baz');
+
+      });
+
+    });
+
+    describe('updating a rollback tag', function () {
+
+      beforeEach(function () {
+        spyOn(GithubTags.prototype, 'newRollbackTag');
+      });
+
+      it('should first get the rollback tag', function () {
+
+        var task = new GithubTags(makeGoodMockTask());
+
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/rollback-' + packageInfo.version + '/?oauth_token=abc123';
+
+        task.updateRollbackTag('qwerty');
+
+        expect(request.get).toHaveBeenCalled();
+        expect(request.get.mostRecentCall.args[0]).toEqual(expectedUrl);
+
+      });
+
+      it('should create a new rollback tag if one does not exist', function () {
+
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('qwerty');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'Not Found'}))
+
+        expect(GithubTags.prototype.newRollbackTag).toHaveBeenCalledWith('qwerty');
+
+      });
+
     });
 
   });
