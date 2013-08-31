@@ -2,19 +2,20 @@
 
 var grunt = require('grunt'),
     _ = grunt.util._,
-    packageInfo = grunt.file.readJSON('package.json');
+    packageInfo = grunt.file.readJSON('package.json'),
+    request = require('request'),
+    shell = require('shelljs');
 
 var GithubTags = require('../lib/githubTagsTask.js');
 
-describe("githubTags task", function () {
+describe('githubTags task', function () {
 
   var makeBadMockTask = function (opts, done) {
 
-    var taskOpts = _.extend({ bad: "option" }, opts)
+    var taskOpts = _.extend({ bad: 'option' }, opts)
 
     return {
       _taskOptions: taskOpts,
-      filesSrc: grunt.file.expand("test/res/good*.js"),
       options: function(defs) { return _.defaults(this._taskOptions, defs); },
       async: function() {
           return done;
@@ -24,8 +25,7 @@ describe("githubTags task", function () {
 
   var makeGoodMockTask = function (done) {
     return {
-      _taskOptions: { owner: 'TestUser', repo: 'Example' },
-      filesSrc: grunt.file.expand("test/res/good*.js"),
+      _taskOptions: { owner: 'TestUser', repo: 'Example', oauthToken: 'abc123' },
       options: function(defs) { return _.defaults(this._taskOptions, defs); },
       async: function() {
           return done;
@@ -33,7 +33,7 @@ describe("githubTags task", function () {
     };
   };
 
-  it("registers itself with Grunt", function () {
+  it('registers itself with Grunt', function () {
     expect(GithubTags.registerWithGrunt).toBeDefined();
 
     GithubTags.registerWithGrunt(grunt);
@@ -43,31 +43,168 @@ describe("githubTags task", function () {
     expect(grunt.task._tasks[GithubTags.name].info).toEqual(GithubTags.description);
   });
 
-  it("loads options from a task", function () {
-    var task = new GithubTags(makeGoodMockTask()),
-        actual = task.options;
+  describe('load options', function () {
 
-    expect(actual).toBeDefined();
+    it('from a task', function () {
+      var task = new GithubTags(makeGoodMockTask()),
+          actual = task.options;
 
-    expect(actual.rollback).toBe(false);
-    expect(actual.tag).toBe(packageInfo.version);
+      expect(actual).toBeDefined();
+
+      expect(actual.rollback).toBe(false);
+      expect(actual.tag).toBe(packageInfo.version);
+    });
+
+    it('ensures options provide a user', function () {
+      spyOn(GithubTags, 'failed');
+
+      new GithubTags(makeBadMockTask());
+
+      expect(GithubTags.failed).toHaveBeenCalledWith('You must provide the owner\'s name.');
+
+    });
+
+    it('ensures options provide a repo', function () {
+      spyOn(GithubTags, 'failed');
+
+      new GithubTags(makeBadMockTask({owner: 'test'}));
+
+      expect(GithubTags.failed).toHaveBeenCalledWith('You must provide the repo name.');
+    });
+
+    it('ensures options provide a oauth token', function () {
+      spyOn(GithubTags, 'failed');
+
+      new GithubTags(makeBadMockTask({owner: 'test', repo: 'example'}));
+
+      expect(GithubTags.failed).toHaveBeenCalledWith('You must provide the oauth token.');
+    });
+
   });
 
-  it("ensures options provide a user", function () {
-    spyOn(GithubTags, 'failed');
+  describe('Github API URL helper', function () {
 
-    new GithubTags(makeBadMockTask());
+    it('generates a URL for tags with params from task options', function () {
+      var task = new GithubTags(makeGoodMockTask());
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
+      var anotherExpectedUrl = 'https://api.github.com/repos/TestUser/Example/totally/not/going/to/work/but/valid/?oauth_token=abc123';
 
-    expect(GithubTags.failed).toHaveBeenCalledWith('You must provide the owner\'s name.');
+      expect(task.githubApiReq('totally/not/going/to/work/but/valid')).toEqual(anotherExpectedUrl);
+    });
 
   });
 
-  it("ensures options provide a repo", function () {
-    spyOn(GithubTags, 'failed');
+  describe('local git information', function () {
 
-    new GithubTags(makeBadMockTask({owner: "test"}));
+    it('should check with the file system what the SHA is', function () {
+      spyOn(shell, 'exec').andCallThrough();
 
-    expect(GithubTags.failed).toHaveBeenCalledWith('You must provide the repo name.');
+      var task = new GithubTags(makeGoodMockTask());
+
+      expect(shell.exec).toHaveBeenCalledWith('git rev-parse --verify HEAD', {silent: true})
+    });
+
+  });
+
+  describe('creating a new tag', function (done) {
+
+    beforeEach(function () {
+      spyOn(shell, 'exec').andReturn({output: 'foobar'});
+      spyOn(request, 'post');
+      spyOn(grunt.log, 'ok');
+      spyOn(GithubTags, 'failed')
+    });
+
+    it('should call the correct Github API URl with POST', function () {
+      var task = new GithubTags(makeGoodMockTask());
+
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
+
+      task.createTag();
+
+      expect(request.post).toHaveBeenCalled();
+
+      expect(request.post.mostRecentCall.args[0]).toEqual(expectedUrl);
+
+    });
+
+    it('should output an all OK message if the tag was set properly', function (done) {
+      var task = new GithubTags(makeGoodMockTask(done));
+
+      task.createTag();
+
+      request.post.mostRecentCall.args[2](null, null, {object: {sha: 'foobar'}});
+
+      expect(grunt.log.ok).toHaveBeenCalled();
+    });
+
+    it('should called failed if response doesnt have a matching sha in response', function (done) {
+      var task = new GithubTags(makeGoodMockTask(done));
+
+      task.createTag();
+
+      request.post.mostRecentCall.args[2](null, null, {fail: 'this will fail'});
+
+      expect(GithubTags.failed).toHaveBeenCalled();
+
+    });
+
+  });
+
+  describe('udpating a tag', function () {
+
+    beforeEach(function () {
+      spyOn(shell, 'exec').andReturn({output: 'foobar'});
+      spyOn(request, 'patch');
+      spyOn(GithubTags.prototype, 'createTag');
+      spyOn(GithubTags, 'failed');
+      spyOn(grunt.log, 'ok');
+    });
+
+    it('should call the correct Github API URL with PATCH', function () {
+      var task = new GithubTags(makeGoodMockTask());
+
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/?oauth_token=abc123';
+
+      task.updateTag();
+
+      expect(request.patch).toHaveBeenCalled();
+
+      expect(request.patch.mostRecentCall.args[0]).toEqual(expectedUrl);
+    });
+
+    it('should try to create a tag if it doesnt exist', function () {
+      var task = new GithubTags(makeGoodMockTask());
+
+      task.updateTag();
+
+      request.patch.mostRecentCall.args[2](null, null, {message: 'Reference does not exist'});
+
+      expect(GithubTags.failed).toHaveBeenCalled();
+      expect(GithubTags.prototype.createTag).toHaveBeenCalled();
+    });
+
+    it('should fail if it cant create a tag or if update is not successfull', function (done) {
+      var task = new GithubTags(makeGoodMockTask(done));
+
+      task.updateTag();
+
+      request.patch.mostRecentCall.args[2](null, null, {message: 'This will fail'});
+
+      expect(GithubTags.failed).toHaveBeenCalled();
+      expect(GithubTags.failed).toHaveBeenCalledWith('Something went wrong. Perhaps changes have not been pushed to upstream.', 'This will fail');
+    });
+
+    it('should log that everything is OK if successfull', function (done) {
+      var task = new GithubTags(makeGoodMockTask(done));
+
+      task.updateTag();
+
+      request.patch.mostRecentCall.args[2](null, null, {object: {sha: 'foobar'}});
+
+      expect(grunt.log.ok).toHaveBeenCalled();
+    });
+
   });
 
 });
