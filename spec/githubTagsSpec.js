@@ -165,7 +165,7 @@ describe('githubTags task', function () {
     it('should call the correct Github API URL with PATCH', function () {
       var task = new GithubTags(makeGoodMockTask());
 
-      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags?oauth_token=abc123';
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/' + packageInfo.version +'?oauth_token=abc123';
 
       task.updateTag();
 
