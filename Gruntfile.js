@@ -1,6 +1,6 @@
 /*
- * grunt-wat
- * https://github.com/ajself/wat
+ * grunt-github-tags
+ * https://github.com/ajself/grunt-github-tags
  *
  * Copyright (c) 2013 AJ Self
  * Licensed under the MIT license.
@@ -16,10 +16,11 @@ module.exports = function(grunt) {
       all: [
         'Gruntfile.js',
         'tasks/*.js',
+        'lib/githubTags.js',
         '<%= nodeunit.tests %>',
       ],
       options: {
-        jshintrc: '.jshintrc',
+        jshintrc: '.jshintrc'
       },
     },
 
@@ -29,7 +30,7 @@ module.exports = function(grunt) {
     },
 
     // Configuration to be run (and then tested).
-    wat: {
+    githubTags: {
       default_options: {
         options: {
         },
@@ -65,7 +66,7 @@ module.exports = function(grunt) {
 
   // Whenever the "test" task is run, first clean the "tmp" dir, then run this
   // plugin's task(s), then test the result.
-  grunt.registerTask('test', ['clean', 'wat', 'nodeunit']);
+  grunt.registerTask('test', ['clean', 'githubTags', 'nodeunit']);
 
   // By default, lint and run all tests.
   grunt.registerTask('default', ['jshint', 'test']);
