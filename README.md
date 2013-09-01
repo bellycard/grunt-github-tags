@@ -22,7 +22,7 @@ grunt.loadNpmTasks('grunt-github-tags');
 ### Overview
 Easily define and set tags on Github according to your local SHA.
 
-To get started quickly options like so:
+To get started set options like so:
 
 ```
 githubCredentials: grunt.file.readJSON('github-credentials.json'),
