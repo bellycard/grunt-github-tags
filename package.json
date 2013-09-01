@@ -1,7 +1,7 @@
 {
   "name": "grunt-github-tags",
   "description": "Set tags for a repo on Github.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "homepage": "https://github.com/bellycard/grunt-github-tags",
   "author": {
     "name": "AJ Self",

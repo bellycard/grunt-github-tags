@@ -39,8 +39,8 @@ describe('githubTags task', function () {
     GithubTags.registerWithGrunt(grunt);
 
     // Make sure that Grunt is aware of the new task
-    expect(grunt.task._tasks[GithubTags.name].name).toEqual(GithubTags.name);
-    expect(grunt.task._tasks[GithubTags.name].info).toEqual(GithubTags.description);
+    expect(grunt.task._tasks[GithubTags.taskName].name).toEqual(GithubTags.taskName);
+    expect(grunt.task._tasks[GithubTags.taskName].info).toEqual(GithubTags.taskDescription);
   });
 
   describe('load options', function () {
@@ -86,8 +86,8 @@ describe('githubTags task', function () {
 
     it('generates a URL for tags with params from task options', function () {
       var task = new GithubTags(makeGoodMockTask());
-      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
-      var anotherExpectedUrl = 'https://api.github.com/repos/TestUser/Example/totally/not/going/to/work/but/valid/?oauth_token=abc123';
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs?oauth_token=abc123';
+      var anotherExpectedUrl = 'https://api.github.com/repos/TestUser/Example/totally/not/going/to/work/but/valid?oauth_token=abc123';
 
       expect(task.githubApiReq('totally/not/going/to/work/but/valid')).toEqual(anotherExpectedUrl);
     });
@@ -118,7 +118,7 @@ describe('githubTags task', function () {
     it('should call the correct Github API URl with POST', function () {
       var task = new GithubTags(makeGoodMockTask());
 
-      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs?oauth_token=abc123';
 
       task.createTag();
 
@@ -165,7 +165,7 @@ describe('githubTags task', function () {
     it('should call the correct Github API URL with PATCH', function () {
       var task = new GithubTags(makeGoodMockTask());
 
-      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/?oauth_token=abc123';
+      var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags?oauth_token=abc123';
 
       task.updateTag();
 
@@ -227,7 +227,7 @@ describe('githubTags task', function () {
       it('should call the correct Github API URL with GET', function () {
         var task = new GithubTags(makeGoodMockTask());
 
-        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/' + packageInfo.version + '/?oauth_token=abc123';
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/' + packageInfo.version + '?oauth_token=abc123';
 
         task.checkRollbackTag();
 
@@ -275,7 +275,7 @@ describe('githubTags task', function () {
 
         var task = new GithubTags(makeGoodMockTask());
 
-        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/rollback-' + packageInfo.version + '/?oauth_token=abc123';
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/tags/rollback-' + packageInfo.version + '?oauth_token=abc123';
 
         task.updateRollbackTag('qwerty');
 
@@ -366,7 +366,7 @@ describe('githubTags task', function () {
 
       it('should post to the correct Github API URL', function () {
         var task = new GithubTags(makeGoodMockTask());
-        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs?oauth_token=abc123';
         var jsonParams = {json: {sha: 'qwerty', ref: 'refs/tags/rollback-' + packageInfo.version}};
 
         task.newRollbackTag('qwerty');
