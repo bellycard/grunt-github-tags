@@ -102,9 +102,8 @@ In lieu of NodeUnit this project uses Jasmine-Node. To run tests run `npm test` 
 In lieu of a formal styleguide, take care to maintain the existing coding style. Add unit tests for any new or changed functionality. Lint and test your code using `npm test`.
 
 ## Todos
-* Clean up specs
-* Check if tag sha has changed in same fashion as rollback check
-* Add in success message handler in similar fashion as `failed` and `warning`
+* Check if tag sha has changed since last update
+* Get tags currently set on repo
 
 ## Release History
 * 2013-08-31  v0.2.0  Add tests and working release
