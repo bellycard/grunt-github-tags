@@ -103,6 +103,7 @@ In lieu of a formal styleguide, take care to maintain the existing coding style.
 ## Todos
 * Clean up specs
 * Check if tag sha has changed in same fashion as rollback check
+* Add in success message handler in similar fashion as `failed` and `warning`
 
 ## Release History
 * 2013-08-31  v0.2.0  Add tests and working release
