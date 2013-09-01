@@ -138,7 +138,7 @@ describe('githubTags task', function () {
       expect(grunt.log.ok).toHaveBeenCalled();
     });
 
-    it('should called failed if response doesnt have a matching sha in response', function (done) {
+    it('should called failed if response doesnt have a matching SHA in response', function (done) {
       var task = new GithubTags(makeGoodMockTask(done));
 
       task.createTag();
@@ -208,16 +208,17 @@ describe('githubTags task', function () {
 
   });
 
-  describe('get, set, update rollback tags', function () {
+  describe('rollback tags', function () {
 
     beforeEach(function () {
       spyOn(GithubTags, 'failed');
       spyOn(GithubTags, 'warning');
       spyOn(request, 'get');
+      spyOn(request, 'patch');
       spyOn(shell, 'exec').andReturn({output: 'foobar'});
     });
 
-    describe('getting the current, non-rollback tag sha', function () {
+    describe('getting the current, non-rollback tag SHA', function () {
 
       beforeEach(function () {
         spyOn(GithubTags.prototype, 'updateRollbackTag');
@@ -234,7 +235,7 @@ describe('githubTags task', function () {
         expect(request.get.mostRecentCall.args[0]).toEqual(expectedUrl);
       });
 
-      it('should try to update the rollback tag with the current sha if not found', function () {
+      it('should try to update the rollback tag with the current SHA if not found', function () {
 
         var task = new GithubTags(makeGoodMockTask());
 
@@ -248,7 +249,7 @@ describe('githubTags task', function () {
 
       });
 
-      it('should try to update the rollback tag with the returned sha if found', function () {
+      it('should try to update the rollback tag with the returned SHA if found', function () {
 
         var task = new GithubTags(makeGoodMockTask());
 
@@ -262,10 +263,12 @@ describe('githubTags task', function () {
 
     });
 
-    describe('updating a rollback tag', function () {
+    describe('updating', function () {
 
       beforeEach(function () {
         spyOn(GithubTags.prototype, 'newRollbackTag');
+        spyOn(GithubTags.prototype, 'updateTag');
+        spyOn(grunt.log, 'ok');
       });
 
       it('should first get the rollback tag', function () {
@@ -293,6 +296,107 @@ describe('githubTags task', function () {
 
       });
 
+      it('should skip updating the rollback tag if it is set to the current SHA', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('foobar');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'move along'}));
+
+        expect(GithubTags.warning).toHaveBeenCalled();
+        expect(GithubTags.prototype.updateTag).toHaveBeenCalled();
+
+      });
+
+      it('should try to update the rollback tag if the SHAs do not match', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('qwerty');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'move along'}));
+
+        expect(request.patch).toHaveBeenCalled();
+
+      });
+
+      it('should create a new rollback tag if the tag is not found', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('qwerty');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'move along'}));
+        request.patch.mostRecentCall.args[2](null, null, {message: 'Not Found'});
+
+        expect(GithubTags.warning).toHaveBeenCalled();
+        expect(GithubTags.prototype.newRollbackTag).toHaveBeenCalled();
+      });
+
+      it('should create a new rollback tag if the tag reference is not found', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('qwerty');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'move along'}));
+        request.patch.mostRecentCall.args[2](null, null, {message: 'Reference does not exist'});
+
+        expect(GithubTags.warning).toHaveBeenCalled();
+        expect(GithubTags.prototype.newRollbackTag).toHaveBeenCalled();
+      });
+
+      it('should move on to updating the non-rollback tag', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.updateRollbackTag('qwerty');
+
+        request.get.mostRecentCall.args[1](null, null, JSON.stringify({message: 'move along'}));
+        request.patch.mostRecentCall.args[2](null, null, {object: {sha: 'qwerty'}});
+
+        expect(grunt.log.ok).toHaveBeenCalled();
+        expect(GithubTags.prototype.updateTag).toHaveBeenCalled();
+      });
+
+    });
+
+    describe('creating', function () {
+      beforeEach(function () {
+        spyOn(request, 'post');
+        spyOn(GithubTags.prototype, 'updateTag');
+        spyOn(grunt.log, 'ok');
+      });
+
+      it('should post to the correct Github API URL', function () {
+        var task = new GithubTags(makeGoodMockTask());
+        var expectedUrl = 'https://api.github.com/repos/TestUser/Example/git/refs/?oauth_token=abc123';
+        var jsonParams = {json: {sha: 'qwerty', ref: 'refs/tags/rollback-' + packageInfo.version}};
+
+        task.newRollbackTag('qwerty');
+
+        expect(request.post).toHaveBeenCalled();
+
+        expect(request.post.mostRecentCall.args[0]).toEqual(expectedUrl);
+        expect(request.post.mostRecentCall.args[1]).toEqual(jsonParams);
+      });
+
+      it('should log that everything is OK upon creation', function () {
+        var task = new GithubTags(makeGoodMockTask());
+
+        task.newRollbackTag('qwerty');
+
+        request.post.mostRecentCall.args[2](null, null, {object: {sha: 'qwerty'}});
+
+        expect(grunt.log.ok).toHaveBeenCalled();
+        expect(GithubTags.prototype.updateTag).toHaveBeenCalled();
+      });
+
+      it('should log anything else as a failure', function (done) {
+        var task = new GithubTags(makeGoodMockTask(done));
+
+        task.newRollbackTag('qwerty');
+
+        request.post.mostRecentCall.args[2](null, null, {fail: 'this will fail'});
+
+        expect(GithubTags.failed).toHaveBeenCalled();
+      });
     });
 
   });
