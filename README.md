@@ -41,6 +41,7 @@ githubTags: {
   staging: {
     options: {
       tag: 'staging'
+    }
   }
   release: {}
 }
